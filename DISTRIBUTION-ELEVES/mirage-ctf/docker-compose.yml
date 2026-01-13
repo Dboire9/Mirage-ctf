@@ -1,0 +1,166 @@
+version: '3.8'
+
+# MIRAGE CTF - Version Étudiants
+# Images pré-buildées (pas de code source accessible)
+
+services:
+  # Base de données MySQL pour WordPress
+  mysql:
+    image: mysql:8.0
+    container_name: mirage-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress123
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - mirage
+
+  # Base de données MongoDB
+  mongo:
+    image: mongo:7.0
+    container_name: mirage-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+    volumes:
+      - ./mongo/init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh
+      - mongo_data:/data/db
+    networks:
+      - mirage
+
+  # Base de données Redis
+  redis:
+    image: redis:7.0
+    container_name: mirage-redis
+    volumes:
+      - redis_data:/data
+    networks:
+      - mirage
+
+  # Elasticsearch
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: mirage-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - mirage
+
+  # WordPress (Flags 1-2)
+  wordpress:
+    image: mirage-ctf-wordpress
+    container_name: mirage-wordpress
+    depends_on:
+      - mysql
+    ports:
+      - "8001:80"
+    environment:
+      WORDPRESS_DB_HOST: mysql:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress123
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - mirage
+
+  # API Service (Flags 3-8)
+  api:
+    image: mirage-ctf-api
+    container_name: mirage-api
+    ports:
+      - "8002:3000"
+    depends_on:
+      - redis
+    environment:
+      REDIS_URL: redis://redis:6379
+    networks:
+      - mirage
+
+  # Upload Service (Flags 9-12)
+  upload:
+    image: mirage-ctf-upload
+    container_name: mirage-upload
+    ports:
+      - "8003:5000"
+    depends_on:
+      - redis
+    environment:
+      REDIS_URL: redis://redis:6379
+    networks:
+      - mirage
+
+  # NoSQL Service (Flags 13-16)
+  nosql-app:
+    image: mirage-ctf-nosql-app
+    container_name: mirage-nosql
+    ports:
+      - "8004:3000"
+    depends_on:
+      - mongo
+      - redis
+      - elasticsearch
+    environment:
+      MONGODB_URI: mongodb://admin:password123@mongo:27017
+      REDIS_URL: redis://redis:6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    networks:
+      - mirage
+
+  # Support Bot (Flag Expert 17)
+  support-bot:
+    image: mirage-ctf-support-bot
+    container_name: mirage-support
+    ports:
+      - "8008:8008"
+    networks:
+      - mirage
+
+  # AI Assistant (Flag Expert 18)
+  ai-assistant:
+    image: mirage-ctf-ai-assistant
+    container_name: mirage-ai-assistant
+    ports:
+      - "8009:8009"
+    networks:
+      - mirage
+
+  # Chaos Middleware (Flag Expert 19-20)
+  chaos-middleware:
+    image: mirage-ctf-chaos-middleware
+    container_name: mirage-chaos
+    ports:
+      - "8010:3000"
+    depends_on:
+      - redis
+    environment:
+      REDIS_URL: redis://redis:6379
+    networks:
+      - mirage
+
+  # Service interne pour JWT kid traversal
+  internal-service:
+    image: mirage-ctf-internal-service
+    container_name: mirage-internal
+    networks:
+      - mirage
+
+networks:
+  mirage:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  mongo_data:
+  redis_data:
+  elasticsearch_data:
+  wordpress_data:

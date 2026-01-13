@@ -1,0 +1,156 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# MIRAGE CTF - Distribution Étudiants
+# Une seule commande : vagrant up
+# Tout sera configuré automatiquement !
+
+Vagrant.configure("2") do |config|
+  # Box de base - Ubuntu 22.04 LTS
+  config.vm.box = "ubuntu/jammy64"
+  
+  # Nom de la VM
+  config.vm.hostname = "mirage-ctf-lab"
+  
+  # Port forwarding pour Mirage CTF
+  config.vm.network "forwarded_port", guest: 8001, host: 8001  # WordPress
+  config.vm.network "forwarded_port", guest: 8002, host: 8002  # API
+  config.vm.network "forwarded_port", guest: 8003, host: 8003  # Upload
+  config.vm.network "forwarded_port", guest: 8004, host: 8004  # NoSQL
+  config.vm.network "forwarded_port", guest: 8008, host: 8008  # Support Bot (Expert)
+  config.vm.network "forwarded_port", guest: 8009, host: 8009  # AI Assistant (Expert)
+  config.vm.network "forwarded_port", guest: 8010, host: 8010  # Chaos Middleware (Expert)
+  
+  # Réseau privé pour accès direct
+  config.vm.network "private_network", ip: "192.168.56.10"
+  
+  # Dossiers partagés
+  config.vm.synced_folder ".", "/vagrant", 
+    create: true,
+    owner: "vagrant",
+    group: "vagrant"
+  
+  config.vm.synced_folder "./mirage-ctf", "/home/vagrant/mirage-ctf", 
+    create: true,
+    owner: "vagrant",
+    group: "vagrant"
+  
+  # Configuration du provider VirtualBox
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "Mirage-CTF-Student-Lab"
+    vb.memory = "4096"
+    vb.cpus = 2
+  end
+  
+  # Provisioning - installation automatique
+  config.vm.provision "shell", inline: <<-SHELL
+    set -e  # Arrêter en cas d'erreur
+    
+    echo "🚀 Configuration automatique de Mirage CTF..."
+    
+    # Mise à jour du système
+    apt-get update -qq
+    
+    # Installation de Docker et Docker Compose
+    echo "📦 Installation de Docker..."
+    apt-get install -y -qq \
+      ca-certificates \
+      curl \
+      gnupg \
+      lsb-release \
+      jq
+    
+    # Ajouter la clé GPG officielle de Docker
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    
+    # Configurer le repository Docker
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    
+    # Installer Docker Engine
+    apt-get update -qq
+    apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    
+    # Configuration de Docker
+    systemctl enable docker
+    systemctl start docker
+    
+    # Ajout de l'utilisateur vagrant au groupe docker
+    usermod -aG docker vagrant
+    
+    # Installer Docker Compose v2
+    echo "📦 Installation de Docker Compose..."
+    mkdir -p /usr/local/lib/docker/cli-plugins
+    curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+    ln -sf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+    
+    # Installation des outils de pentest
+    echo "🔧 Installation des outils..."
+    apt-get install -y -qq \
+      nmap \
+      netcat-traditional \
+      curl \
+      wget \
+      git \
+      python3 \
+      python3-pip \
+      nikto \
+      dirb \
+      hydra \
+      sqlmap \
+      vim \
+      jq
+    
+    # Installation d'outils Python
+    pip3 install -q requests beautifulsoup4
+    
+    # Démarrer le CTF automatiquement
+    echo "🎯 Démarrage de Mirage CTF..."
+    cd /vagrant/mirage-ctf
+    
+    # Chargement des images Docker pré-construites
+    echo "📦 Chargement des images Docker..."
+    /vagrant/load-images.sh
+    
+    # Démarrer les services
+    sudo -u vagrant docker-compose up -d
+    
+    # Attendre que les services soient prêts
+    echo "⏳ Attente que les services soient prêts..."
+    sleep 30
+    
+    # Test de connectivité
+    if curl -s http://localhost:8001 > /dev/null; then
+        echo "✅ WordPress (Port 8001): OK"
+    else
+        echo "❌ WordPress (Port 8001): ERREUR"
+    fi
+    
+    if curl -s http://localhost:8002/api/status > /dev/null; then
+        echo "✅ API (Port 8002): OK"
+    else
+        echo "❌ API (Port 8002): ERREUR"
+    fi
+    
+    # Message final
+    echo ""
+    echo "🎉 MIRAGE CTF EST PRÊT !"
+    echo "=================================="
+    echo "🌐 Services disponibles:"
+    echo "  WordPress:      http://localhost:8001"
+    echo "  API:            http://localhost:8002"
+    echo "  Upload:         http://localhost:8003"
+    echo "  NoSQL:          http://localhost:8004"
+    echo "  Support Bot:    http://localhost:8008"
+    echo "  AI Assistant:   http://localhost:8009"
+    echo "  Chaos:          http://localhost:8010"
+    echo ""
+    echo "📚 Documentation: ~/mirage-ctf/STUDENT-GUIDE.md"
+    echo "🎯 Total: 20 flags à trouver (1300 points)"
+    echo "=================================="
+    echo "Bon pentest ! 🔥"
+  SHELL
+end
