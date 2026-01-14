@@ -13,7 +13,7 @@ Bienvenue dans le laboratoire Mirage CTF ! Ce package contient tout le nécessai
 
 ### 1️⃣ Télécharger les images Docker
 
-1. Allez dans les **[Releases](https://github.com/VOTRE-USERNAME/mirage-ctf-student-lab/releases)**
+1. Allez dans les **[Releases](https://github.com/Dboire9/Mirage-ctf/releases)**
 2. Téléchargez le fichier `mirage-ctf-images.zip` de la dernière release
 3. Décompressez-le dans ce répertoire (doit créer le dossier `images/`)
 
